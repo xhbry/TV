@@ -1,4 +1,4 @@
-name: 编译FongMiTV
+name: 编译FongMiTV签名APK
 on:
   workflow_dispatch:
 
@@ -6,31 +6,39 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - name: 拉取代码
+        uses: actions/checkout@v4
 
-      - name: 生成签名文件
-        run: echo "${{ secrets.SIGNING_KEY }}" | base64 -d > key.jks
+      - name: 解码签名文件
+        run: echo "${{ secrets.SIGNING_KEY }}" | base64 -d > keystore.jks
 
-      - name: 配置JDK
+      - name: 配置JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: 17
-          distribution: temurin
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
       - name: 写入签名配置
         run: |
-          echo "storeFile=../key.jks" > app/keystore.properties
-          echo "storePassword=${{ secrets.KEY_STORE_PASSWORD }}" >> app/keystore.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> app/keystore.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> app/keystore.properties
+          cat > keystore.properties << EOF
+          storeFile=../keystore.jks
+          storePassword=${{ secrets.KEY_STORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
+          mv keystore.properties app/
 
-      - name: 构建电视版APK
-        run: chmod +x gradlew && ./gradlew assembleLeanbackRelease
+      - name: 赋予执行权限
+        run: chmod +x gradlew
 
-      - name: 上传APK
+      - name: 编译电视版Release
+        run: ./gradlew assembleLeanbackRelease --no-build-cache
+
+      - name: 上传成品APK
         uses: actions/upload-artifact@v4
         with:
-          name: FongMi-TV-Signed
+          name: FongMi-TV-Signed-APK
           path: app/build/outputs/apk/leanback/release/*.apk
