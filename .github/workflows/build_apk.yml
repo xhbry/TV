@@ -1,4 +1,4 @@
-name: 编译FongMiTV（不签名版）
+name: ok
 on:
   workflow_dispatch:
 
